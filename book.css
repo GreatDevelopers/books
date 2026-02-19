@@ -1,0 +1,33 @@
+/* book.css - Enterprise Aesthetics */
+
+#pdf-render {
+    max-width: 100%;
+    height: auto;
+    /* Perceptual Anchor: Page looks like a physical document */
+    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.5));
+}
+
+#canvas-wrapper {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrollbar styling for enterprise theme */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3b82f6;
+}
+
+/* Loading state for canvas */
+.rendering {
+    opacity: 0.7;
+    cursor: wait;
+}
