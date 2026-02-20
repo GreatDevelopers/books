@@ -1,0 +1,11 @@
+{
+  "pdfUrl": "Resources/DA/DA.pdf",
+  "chapters": [
+    {"title": "Preface", "page": 0},
+    {"title": "Chapter 1: Flexure", "page": 5},
+    {"title": "Chapter 2: Shear & Torsion", "page": 25},
+    {"title": "Chapter 3: Columns", "page": 50},
+    {"title": "Chapter 4: Footings", "page": 85},
+    {"title": "Appendix", "page": 110}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Design Aids for LSD of RC Members",
+  "short_name": "RC Design",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f4f1ea",
+  "theme_color": "#f4f1ea",
+  "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
+}

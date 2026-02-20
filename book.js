@@ -1,124 +1,170 @@
 /**
- * Enterprise PDF Reader Engine
- * v1.0.0
+ * book.js - Enterprise PDF Flip-Book Engine
+ * Version: 3.1.0 (Content-Sync Fix)
  */
 
-// 1. VARIABLE CONFIGURATION: Change your file location here
-const PDF_PATH = 'DA/DA.pdf'; 
+// --- 1. CONFIGURATION & DYNAMIC PATHS ---
+const getBookID = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('book') || 'DA'; 
+};
 
-let pdfDoc = null,
-    pageNum = 1,
-    pageIsRendering = false,
-    pageNumIsPending = null,
-    scale = 1.0,
-    canvas = document.querySelector('#pdf-render'),
-    ctx = canvas.getContext('2d');
+const BOOK_ID = getBookID();
+const RESOURCE_PATH = `Resources/${BOOK_ID}`;
+let PDF_URL = ''; 
+let pdfDoc = null;
+let pageFlip = null;
+let currentScale = 1.5;
 
-/**
- * Render the requested page
- */
-const renderPage = num => {
-    pageIsRendering = true;
-    document.getElementById('canvas-wrapper').classList.add('rendering');
+// --- 2. RESOURCE INITIALIZATION ---
 
-    // Fetch the page
-    pdfDoc.getPage(num).then(page => {
-        const viewport = page.getViewport({ scale });
+window.addEventListener('load', async () => {
+    console.log(`%c Initializing Book: ${BOOK_ID} `, "background: #222; color: #bada55");
+
+    try {
+        const cacheBuster = `?t=${new Date().getTime()}`;
+        const configPath = `${RESOURCE_PATH}/chapters.json${cacheBuster}`;
+
+        const response = await fetch(configPath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: chapters.json not found at ${configPath}`);
+        
+        const config = await response.json();
+        PDF_URL = config.pdfUrl;
+        console.log("PDF Source Target:", PDF_URL);
+
+        const select = document.getElementById('chapter-select');
+        if (config.chapters) {
+            config.chapters.forEach(ch => {
+                let opt = new Option(ch.title, ch.page);
+                select.add(opt);
+            });
+        }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        
+        const loadingTask = pdfjsLib.getDocument({
+            url: PDF_URL,
+            cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/',
+            cMapPacked: true,
+        });
+
+        pdfDoc = await loadingTask.promise;
+        document.getElementById('page-total').textContent = pdfDoc.numPages;
+        console.log("%c PDF Render Engine Ready ", "color: green; font-weight: bold;");
+
+    } catch (err) {
+        console.error("Enterprise Loader Error:", err);
+        const landing = document.getElementById('landing-page');
+        const errDiv = document.createElement('div');
+        errDiv.className = "mt-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg font-mono text-sm max-w-xl";
+        errDiv.innerHTML = `<strong>Error</strong>: ${err.message}`;
+        landing.appendChild(errDiv);
+    }
+});
+
+// --- 3. 3D BOOK RENDERING LOGIC ---
+
+async function render3DBook() {
+    const container = document.getElementById('book-container');
+    container.innerHTML = '<div class="p-10 text-stone-500 italic">Generating 3D Pages...</div>';
+
+    const fragment = document.createDocumentFragment();
+    const pagesList = [];
+
+    // Create and Render all pages
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({ scale: currentScale });
+        
+        const canvas = document.createElement('canvas');
+        canvas.className = 'page-canvas';
+        const context = canvas.getContext('2d');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
-        const renderCtx = {
-            canvasContext: ctx,
-            viewport: viewport
-        };
-
-        const renderTask = page.render(renderCtx);
-
-        renderTask.promise.then(() => {
-            pageIsRendering = false;
-            document.getElementById('canvas-wrapper').classList.remove('rendering');
-
-            if (pageNumIsPending !== null) {
-                renderPage(pageNumIsPending);
-                pageNumIsPending = null;
-            }
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'page';
+        pageDiv.appendChild(canvas);
+        fragment.appendChild(pageDiv);
+        
+        // Push the render promise
+        pagesList.push({
+            renderPromise: page.render({ canvasContext: context, viewport }).promise,
+            element: pageDiv
         });
-
-        // UI Updates
-        document.querySelector('#page-num').textContent = num;
-        document.querySelector('#zoom-percent').textContent = `${Math.round(scale * 100)}%`;
-    });
-};
-
-/**
- * Handle state during rendering to prevent race conditions
- */
-const queueRenderPage = num => {
-    if (pageIsRendering) {
-        pageNumIsPending = num;
-    } else {
-        renderPage(num);
     }
-};
 
-// Navigation Functions
-const onPrevPage = () => {
-    if (pageNum <= 1) return;
-    pageNum--;
-    queueRenderPage(pageNum);
-};
+    // Wait for all canvases to be "painted"
+    await Promise.all(pagesList.map(p => p.renderPromise));
+    console.log("All pages rendered to memory.");
 
-const onNextPage = () => {
-    if (pageNum >= pdfDoc.numPages) return;
-    pageNum++;
-    queueRenderPage(pageNum);
-};
+    container.innerHTML = ''; 
+    container.appendChild(fragment);
 
-// Zoom Functions
-const zoomIn = () => {
-    scale += 0.25;
-    queueRenderPage(pageNum);
-};
+    // Short timeout to ensure DOM layout is calculated
+    setTimeout(() => {
+        try {
+            pageFlip = new St.PageFlip(container, {
+                width: 450, 
+                height: 600,
+                size: "stretch",
+                showCover: true,
+                maxShadowOpacity: 0.5,
+                usePortrait: false, 
+                startPage: 0
+            });
 
-const zoomOut = () => {
-    if (scale <= 0.5) return;
-    scale -= 0.25;
-    queueRenderPage(pageNum);
-};
+            const htmlPages = document.querySelectorAll('.page');
+            pageFlip.loadFromHTML(htmlPages);
+            
+            // Critical fix for white pages: update library state
+            pageFlip.updateFromHtml(htmlPages);
 
-// Jump to Page Logic
-const handleJump = () => {
-    const input = document.getElementById('jump-to-page');
-    const targetPage = parseInt(input.value);
-    if (targetPage > 0 && targetPage <= pdfDoc.numPages) {
-        pageNum = targetPage;
-        queueRenderPage(pageNum);
-        input.value = ''; // clear input
-    }
-};
+            console.log("3D Engine Initialized and Content Visible.");
+            document.getElementById('page-num').textContent = pageFlip.getCurrentPageIndex() + 1;
+            
+        } catch (flipError) {
+            console.error("Flip Library Error:", flipError);
+            container.innerHTML = `<div class="p-10 text-red-500">Failed to start 3D Engine.</div>`;
+        }
+    }, 250); 
+}
 
-// Initialization: Load Document
-pdfjsLib.getDocument(PDF_PATH).promise.then(pdfDoc_ => {
-    pdfDoc = pdfDoc_;
-    document.querySelector('#page-count').textContent = pdfDoc.numPages;
-    renderPage(pageNum);
-}).catch(err => {
-    console.error("PDF Load Error: ", err);
-    const main = document.querySelector('main');
-    main.innerHTML = `<div class="bg-red-900 border border-red-500 p-4 rounded text-white">
-        Error loading PDF (${PDF_PATH}). Please ensure the file exists.
-    </div>`;
+// --- 4. UI INTERACTION ---
+
+document.getElementById('btn-read').addEventListener('click', () => {
+    if (!pdfDoc) return;
+    document.getElementById('landing-page').classList.add('hidden');
+    document.getElementById('reader-page').classList.remove('hidden');
+    render3DBook();
 });
 
-// Event Listeners
-document.querySelector('#prev-page').addEventListener('click', onPrevPage);
-document.querySelector('#next-page').addEventListener('click', onNextPage);
-document.querySelector('#zoom-in').addEventListener('click', zoomIn);
-document.querySelector('#zoom-out').addEventListener('click', zoomOut);
-document.querySelector('#go-to-page').addEventListener('click', handleJump);
+document.getElementById('btn-back').addEventListener('click', () => {
+    window.location.reload();
+});
 
-// Perceptual Anchor: Keyboard Support for "Book" feel
-window.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight') onNextPage();
-    if (e.key === 'ArrowLeft') onPrevPage();
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('theme-dark');
+});
+
+document.getElementById('chapter-select').addEventListener('change', (e) => {
+    if (pageFlip) pageFlip.flip(parseInt(e.target.value));
+});
+
+document.getElementById('z-in').addEventListener('click', () => {
+    const book = document.getElementById('book-container');
+    const scale = (parseFloat(book.style.transform.replace('scale(', '')) || 1) + 0.1;
+    book.style.transform = `scale(${scale})`;
+});
+
+document.getElementById('z-out').addEventListener('click', () => {
+    const book = document.getElementById('book-container');
+    const scale = (parseFloat(book.style.transform.replace('scale(', '')) || 1) - 0.1;
+    if (scale >= 0.5) book.style.transform = `scale(${scale})`;
+});
+
+window.addEventListener('keydown', (e) => {
+    if (!pageFlip) return;
+    if (e.key === 'ArrowRight') pageFlip.flipNext();
+    if (e.key === 'ArrowLeft') pageFlip.flipPrev();
 });

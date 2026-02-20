@@ -2,81 +2,67 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise PDF Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Design Aid for Limit State Design of RC members | U H Varyani et al.</title>
+    <meta name="description" content="Technical Design Aid for Limit State Design of RC members by U H Varyani, A Radhaji, and H S Rai. High-quality interactive PDF reader.">
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f4f1ea">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    
     <link rel="stylesheet" href="book.css">
 </head>
-<body class="bg-slate-900 text-gray-100 min-h-screen overflow-x-hidden">
+<body class="theme-paper transition-colors duration-500">
 
-    <nav class="fixed top-0 w-full bg-slate-800 border-b border-slate-700 z-50 px-6 py-3 flex justify-between items-center">
-        <div class="flex items-center space-x-4">
-            <span class="font-bold text-xl tracking-tight text-blue-400">DA_READER_v1.0</span>
-        </div>
+    <section id="landing-page" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <header class="max-w-3xl">
+            <h1 class="text-4xl md:text-6xl font-serif font-bold text-gray-900 mb-4">Design Aid for Limit State Design of RC members</h1>
+            <p class="text-xl text-gray-700 italic mb-8">U H Varyani, A Radhaji, H S Rai</p>
+        </header>
 
-        <div class="flex items-center space-x-2 bg-slate-700 rounded-lg p-1">
-            <button id="prev-page" class="hover:bg-slate-600 p-2 rounded transition-colors" title="Previous Page">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <div class="flex flex-col md:flex-row gap-6 mb-12">
+            <button id="btn-read" class="bg-amber-800 hover:bg-amber-900 text-white px-10 py-4 rounded-full text-xl font-semibold shadow-lg transition-transform hover:scale-105">
+                Read Book
             </button>
-            <div class="px-3 text-sm font-medium border-x border-slate-600">
-                Page <span id="page-num" class="text-blue-400">0</span> / <span id="page-count">0</span>
-            </div>
-            <button id="next-page" class="hover:bg-slate-600 p-2 rounded transition-colors" title="Next Page">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            <button id="theme-toggle" class="bg-gray-200 dark:bg-gray-800 px-6 py-4 rounded-full font-medium border border-gray-300">
+                Switch Mode (Light/Dark)
             </button>
         </div>
 
-        <div class="flex items-center space-x-4">
-            <div class="flex bg-slate-700 rounded-lg p-1">
-                <button id="zoom-out" class="hover:bg-slate-600 p-2 rounded transition-colors" title="Zoom Out">-</button>
-                <span id="zoom-percent" class="px-2 self-center text-xs w-12 text-center">100%</span>
-                <button id="zoom-in" class="hover:bg-slate-600 p-2 rounded transition-colors" title="Zoom In">+</button>
-            </div>
-            <div class="flex space-x-1">
-                <input type="number" id="jump-to-page" class="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="Go to...">
-                <button id="go-to-page" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm font-semibold transition-all">Jump</button>
+        <div class="max-w-2xl bg-white/50 p-8 rounded-2xl border border-gray-200 backdrop-blur-sm">
+            <h2 class="text-2xl font-bold mb-4">How to Use</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div><strong>Navigate:</strong> Swipe corners or use arrow keys.</div>
+                <div><strong>Zoom:</strong> Pinch or double-tap on mobile.</div>
+                <div><strong>Chapters:</strong> Use the sidebar index inside.</div>
             </div>
         </div>
-    </nav>
+    </section>
 
-    <main class="pt-24 pb-12 flex flex-col items-center">
-        <div id="canvas-wrapper" class="relative shadow-2xl transition-all duration-300 ease-in-out">
-            <canvas id="pdf-render" class="rounded shadow-lg bg-white"></canvas>
+    <section id="reader-page" class="hidden fixed inset-0 z-50 flex flex-col bg-stone-200">
+        <nav class="bg-stone-800 text-white p-3 flex justify-between items-center">
+            <button id="btn-back" class="text-sm border border-stone-600 px-3 py-1 rounded">← Exit</button>
+            <div class="flex items-center gap-4">
+                <select id="chapter-select" class="bg-stone-700 text-xs p-1 rounded border-none"></select>
+                <span class="text-xs">Page <span id="page-num">1</span> / <span id="page-total">0</span></span>
+            </div>
+            <div class="flex gap-2">
+                <button id="z-in" class="w-8 h-8 bg-stone-700 rounded">+</button>
+                <button id="z-out" class="w-8 h-8 bg-stone-700 rounded">-</button>
+            </div>
+        </nav>
+
+        <div id="book-viewport" class="flex-grow flex items-center justify-center overflow-hidden">
+            <div id="book-container">
+                </div>
         </div>
+    </section>
 
-        <section class="max-w-4xl w-full mt-12 p-8 bg-slate-800 rounded-xl border border-slate-700">
-            <h2 class="text-2xl font-bold mb-6 border-b border-slate-700 pb-2">Technical Specifications</h2>
-            <p class="mb-4">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin elementum sem at feugiat varius. Integer dictum neque at lacus rhoncus, eu gravida sem facilisis.</p>
-            
-            <table class="w-full text-left mb-6 border-collapse">
-                <thead>
-                    <tr class="bg-slate-700">
-                        <th class="p-3 border border-slate-600">Module ID</th>
-                        <th class="p-3 border border-slate-600">Functionality</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="p-3 border border-slate-600">MOD-001</td>
-                        <td class="p-3 border border-slate-600">Rendering Engine (PDF.js)</td>
-                    </tr>
-                    <tr>
-                        <td class="p-3 border border-slate-600">MOD-002</td>
-                        <td class="p-3 border border-slate-600">UI/UX Layer (Tailwind)</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <h3 class="text-lg font-semibold mb-2">Implementation Summary</h3>
-            <ul class="list-disc list-inside space-y-2 text-gray-400">
-                <li>Separation of HTML/CSS/JS for maintainability.</li>
-                <li>Perceptual anchors for smooth page transitions.</li>
-                <li>Responsive canvas scaling for zoom features.</li>
-            </ul>
-        </section>
-    </main>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="book.js"></script>
 </body>
 </html>
